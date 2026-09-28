@@ -1,0 +1,28 @@
+{
+  "name": "foundry-political-overlay",
+  "version": "0.1.0",
+  "description": "Paint political territory onto scene grid cells in FoundryVTT.",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "build": "rollup -c",
+    "watch": "rollup -c --watch",
+    "dev": "cross-env NODE_ENV=development rollup -c --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@league-of-foundry-developers/foundry-vtt-types": "14.366.0-beta.20260925073408",
+    "@rollup/plugin-commonjs": "^28.0.2",
+    "@rollup/plugin-json": "^6.1.0",
+    "@rollup/plugin-node-resolve": "^16.0.0",
+    "@rollup/plugin-typescript": "^12.1.2",
+    "cross-env": "^7.0.3",
+    "dotenv": "^16.4.7",
+    "rollup": "^4.29.1",
+    "rollup-plugin-copy": "^3.5.0",
+    "rollup-plugin-scss": "^4.0.1",
+    "sass": "^1.83.0",
+    "tslib": "^2.8.1",
+    "typescript": "^5.7.2"
+  }
+}

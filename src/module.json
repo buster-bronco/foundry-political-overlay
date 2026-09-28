@@ -1,0 +1,11 @@
+{
+  "id": "foundry-political-overlay",
+  "type": "module",
+  "title": "Political Overlay",
+  "description": "Paint political territory onto scene grid cells.",
+  "version": "0.1.0",
+  "compatibility": { "minimum": "14", "verified": "14" },
+  "languages": [{ "lang": "en", "name": "English", "path": "languages/en.json" }],
+  "styles": ["style.css"],
+  "esmodules": ["scripts/module.js"]
+}

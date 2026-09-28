@@ -1,0 +1,34 @@
+{
+  "POLITICAL_OVERLAY": {
+    "control": "Political Overlay",
+    "tools": {
+      "paint": "Paint Territory",
+      "erase": "Erase Territory",
+      "toggle": "Show/Hide Overlay",
+      "config": "Configure Overlay",
+      "reset": "Reset Overlay"
+    },
+    "palette": {
+      "title": "Territory Palette",
+      "custom": "Custom color"
+    },
+    "config": {
+      "title": "Political Overlay Options",
+      "gmAlpha": "GM Opacity",
+      "playerAlpha": "Player Opacity"
+    },
+    "reset": {
+      "content": "Clear every painted cell on this scene?"
+    },
+    "settings": {
+      "playerEditable": {
+        "name": "Player Editable",
+        "hint": "Players with drawing permission can paint the overlay."
+      }
+    },
+    "errors": {
+      "noGM": "No active GM to save the overlay.",
+      "gridless": "The political overlay needs a square or hex grid."
+    }
+  }
+}
