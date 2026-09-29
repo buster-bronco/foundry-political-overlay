@@ -6,11 +6,21 @@ export type CellChanges = Record<string, string | null>;
 
 export type OverlayTool = "paint" | "erase";
 
+// dm-set label for one painted color
+export interface LegendEntry {
+  name?: string;
+  secondary?: string;
+}
+
+// key is the hex color without "#"
+export type LegendMap = Record<string, LegendEntry>;
+
 export interface OverlayFlags {
   visible?: boolean;
   gmAlpha?: number;
   playerAlpha?: number;
   cells?: CellMap;
+  legend?: LegendMap;
 }
 
 export interface PaintQueryData {

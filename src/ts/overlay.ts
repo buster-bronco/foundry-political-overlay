@@ -1,6 +1,6 @@
-import { CONSTANTS } from "./constants";
+import { CONSTANTS, PALETTE } from "./constants";
 import { isPlayerEditable } from "./settings";
-import type { CellChanges, CellMap, OverlayFlags, PaintQueryData } from "./types";
+import type { CellChanges, CellMap, LegendMap, OverlayFlags, PaintQueryData } from "./types";
 import { getGame } from "./utils";
 
 export const getFlags = (scene: Scene | null | undefined): OverlayFlags => {
@@ -8,6 +8,38 @@ export const getFlags = (scene: Scene | null | undefined): OverlayFlags => {
 };
 
 export const getCells = (scene: Scene | null | undefined): CellMap => getFlags(scene).cells ?? {};
+
+// flag paths split on "." so the "#" is dropped from legend keys
+export const colorKey = (color: string): string => color.replace(/^#/, "").toLowerCase();
+
+// unique painted colors in first-seen order
+export const getLegendColors = (scene: Scene | null | undefined): string[] => {
+  const seen = new Map<string, string>();
+  for (const color of Object.values(getCells(scene))) {
+    const key = colorKey(color);
+    if (!seen.has(key)) seen.set(key, `#${key}`);
+  }
+  return [...seen.values()];
+};
+
+export const getLegend = (scene: Scene | null | undefined): LegendMap => getFlags(scene).legend ?? {};
+
+export interface LegendRow {
+  color: string;
+  key: string;
+  name: string;
+  secondary: string;
+}
+
+export const getLegendEntries = (scene: Scene | null | undefined): LegendRow[] => {
+  const legend = getLegend(scene);
+  return getLegendColors(scene).map((color) => {
+    const key = colorKey(color);
+    const entry = legend[key] ?? {};
+    const fallback = PALETTE.find((p) => colorKey(p.color) === key)?.name ?? color;
+    return { color, key, name: entry.name || fallback, secondary: entry.secondary ?? "" };
+  });
+};
 
 export const getAlpha = (scene: Scene | null | undefined): number => {
   const flags = getFlags(scene);

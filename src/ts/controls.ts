@@ -1,3 +1,4 @@
+import LegendWindow from "./apps/LegendWindow";
 import OverlayConfig from "./apps/OverlayConfig";
 import PaletteControls from "./apps/PaletteControls";
 import { CONSTANTS } from "./constants";
@@ -97,5 +98,9 @@ export function registerControls(): void {
     if (scene.id !== canvas?.scene?.id) return;
     if (!foundry.utils.hasProperty(changes, `flags.${CONSTANTS.MODULE_ID}`)) return;
     getLayer()?.refresh();
+    LegendWindow.sync();
   });
+
+  // canvasready fires after every scene draw
+  Hooks.on("canvasReady", () => LegendWindow.sync());
 }

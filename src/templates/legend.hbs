@@ -1,0 +1,15 @@
+<section class="political-overlay-legend-body">
+    <ol class="entries">
+        {{#each entries}}
+        <li class="entry">
+            <span class="swatch primary" style="--swatch: {{color}}"></span>
+            <span class="name">{{name}}</span>
+            {{#if secondary}}
+            <span class="swatch secondary" style="--swatch: {{secondary}}"></span>
+            {{else}}
+            <span class="swatch secondary empty"></span>
+            {{/if}}
+        </li>
+        {{/each}}
+    </ol>
+</section>

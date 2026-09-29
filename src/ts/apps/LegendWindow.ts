@@ -1,0 +1,42 @@
+import { CONSTANTS } from "../constants";
+import { getFlags, getLegendEntries } from "../overlay";
+import { isGM } from "../utils";
+
+const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
+
+// floating key of painted colors for the viewed scene
+export default class LegendWindow extends HandlebarsApplicationMixin(ApplicationV2) {
+  static #instance: LegendWindow | null = null;
+
+  static override DEFAULT_OPTIONS: any = {
+    id: "political-overlay-legend",
+    classes: ["political-overlay-legend"],
+    window: { title: "POLITICAL_OVERLAY.legend.title", icon: "fa-solid fa-list", minimizable: true },
+    position: { width: 220, height: "auto", left: 120 },
+  };
+
+  static override PARTS = {
+    body: { template: `modules/${CONSTANTS.MODULE_ID}/templates/legend.hbs` },
+  };
+
+  // players only get the legend while the overlay is shown
+  static shouldShow(): boolean {
+    const scene = canvas?.scene;
+    if (!scene || !getLegendEntries(scene).length) return false;
+    return isGM() || !!getFlags(scene).visible;
+  }
+
+  static sync(): void {
+    if (!this.shouldShow()) return void this.#instance?.close();
+    // top is measured from the viewport since position has no bottom
+    this.#instance ??= new LegendWindow({ position: { top: Math.max(80, window.innerHeight - 320) } });
+    void this.#instance.render({ force: true });
+  }
+
+  override async _prepareContext(_options: any): Promise<any> {
+    return {
+      entries: getLegendEntries(canvas?.scene),
+      isGM: isGM(),
+    };
+  }
+}

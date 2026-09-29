@@ -12,6 +12,9 @@
       "title": "Territory Palette",
       "custom": "Custom color"
     },
+    "legend": {
+      "title": "Territory Legend"
+    },
     "config": {
       "title": "Political Overlay Options",
       "gmAlpha": "GM Opacity",
