@@ -2,6 +2,7 @@ import { CONSTANTS } from "../constants";
 import { commitChanges, getAlpha, getCells, getFlags } from "../overlay";
 import { getPaletteColor } from "../settings";
 import type { CellChanges, OverlayTool } from "../types";
+import { getGame } from "../utils";
 
 const { InteractionLayer } = foundry.canvas.layers;
 
@@ -16,6 +17,8 @@ export default class PoliticalOverlayLayer extends InteractionLayer {
   #inflight: CellChanges = {};
   // last painted cell; start point for shift-click lines
   #anchor: string | null = null;
+  // canvas point where a ctrl-drag rectangle started
+  #rectOrigin: PIXI.IPointData | null = null;
 
   static override get layerOptions() {
     return foundry.utils.mergeObject(super.layerOptions, {
@@ -36,6 +39,7 @@ export default class PoliticalOverlayLayer extends InteractionLayer {
     this.#pending = {};
     this.#inflight = {};
     this.#anchor = null;
+    this.#rectOrigin = null;
     this.refresh();
   }
 
@@ -81,6 +85,37 @@ export default class PoliticalOverlayLayer extends InteractionLayer {
   // getdirectpath walks every cell between two offsets on any grid type
   #lineKeys(from: string, to: string): string[] {
     return canvas!.grid!.getDirectPath([this.#offset(from), this.#offset(to)]).map(({ i, j }) => `${i},${j}`);
+  }
+
+  // offset rows/columns between two corners, clamped to the scene
+  #rectKeys(a: PIXI.IPointData, b: PIXI.IPointData): string[] {
+    const rect = canvas!.dimensions!.sceneRect;
+    const clamp = (p: PIXI.IPointData) => ({
+      x: Math.clamp(p.x, rect.left, rect.right - 1),
+      y: Math.clamp(p.y, rect.top, rect.bottom - 1),
+    });
+    const start = canvas!.grid!.getOffset(clamp(a));
+    const end = canvas!.grid!.getOffset(clamp(b));
+    const keys: string[] = [];
+    for (let i = Math.min(start.i, end.i); i <= Math.max(start.i, end.i); i++) {
+      for (let j = Math.min(start.j, end.j); j <= Math.max(start.j, end.j); j++) keys.push(`${i},${j}`);
+    }
+    return keys;
+  }
+
+  #previewColor(erase: boolean): string {
+    return erase ? "#ff00ff" : getPaletteColor();
+  }
+
+  #drawRectPreview(to: PIXI.IPointData): void {
+    const from = this.#rectOrigin!;
+    const color = this.#previewColor(this.tool === "erase");
+    this.#preview.clear();
+    for (const k of this.#rectKeys(from, to)) this.#drawCell(this.#preview, k, color, 0.5);
+    this.#preview
+      .lineStyle(2, color, 1)
+      .drawRect(Math.min(from.x, to.x), Math.min(from.y, to.y), Math.abs(to.x - from.x), Math.abs(to.y - from.y))
+      .lineStyle(0);
   }
 
   #setCell(key: string, erase: boolean): void {
@@ -142,10 +177,11 @@ export default class PoliticalOverlayLayer extends InteractionLayer {
 
   // stage pointermove fires even when no drag is active
   #onHover = (event: PIXI.FederatedPointerEvent): void => {
+    if (this.#rectOrigin) return;
     this.#preview.clear();
     const key = this.#keyAt(event);
     if (!key) return;
-    const color = this.tool === "erase" ? "#ff00ff" : getPaletteColor();
+    const color = this.#previewColor(this.tool === "erase");
     const keys = event.shiftKey && this.#anchor ? this.#lineKeys(this.#anchor, key) : [key];
     for (const k of keys) this.#drawCell(this.#preview, k, color, 0.5);
   };
@@ -158,19 +194,35 @@ export default class PoliticalOverlayLayer extends InteractionLayer {
     this.#click(event, this.tool === "erase");
   }
 
+  // ctrl maps to cmd on mac through the keyboard manager
   protected override _onDragLeftStart(event: any): void {
+    if (getGame().keyboard?.isModifierActive(foundry.helpers.interaction.KeyboardManager.MODIFIER_KEYS.CONTROL as any)) {
+      this.#rectOrigin = { ...(event.interactionData?.origin ?? this.#pointAt(event)) };
+      this.#drawRectPreview(this.#pointAt(event));
+      return;
+    }
     this.#paint(event, this.tool === "erase");
   }
 
   protected override _onDragLeftMove(event: any): void {
+    if (this.#rectOrigin) return this.#drawRectPreview(this.#pointAt(event));
     this.#paint(event, this.tool === "erase");
   }
 
-  protected override _onDragLeftDrop(_event: any): void {
+  protected override _onDragLeftDrop(event: any): void {
+    if (this.#rectOrigin) {
+      const erase = this.tool === "erase";
+      for (const k of this.#rectKeys(this.#rectOrigin, this.#pointAt(event))) this.#setCell(k, erase);
+      this.#rectOrigin = null;
+      this.#preview.clear();
+      this.refresh();
+    }
     void this.#commit();
   }
 
   protected override _onDragLeftCancel(_event: any): void {
+    this.#rectOrigin = null;
+    this.#preview.clear();
     this.#pending = {};
     this.refresh();
   }
