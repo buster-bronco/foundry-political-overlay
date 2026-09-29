@@ -2,12 +2,11 @@
     <ol class="entries">
         {{#each entries}}
         <li class="entry">
-            <span class="swatch primary" style="--swatch: {{color}}"></span>
-            <span class="name">{{name}}</span>
-            {{#if secondary}}
-            <span class="swatch secondary" style="--swatch: {{secondary}}"></span>
+            <span class="swatch" style="--swatch: {{color}}"></span>
+            {{#if @root.isGM}}
+            <input type="text" class="name" name="{{key}}.name" value="{{customName}}" placeholder="{{name}}">
             {{else}}
-            <span class="swatch secondary empty"></span>
+            <span class="name">{{name}}</span>
             {{/if}}
         </li>
         {{/each}}

@@ -1,6 +1,7 @@
 import { CONSTANTS } from "../constants";
-import { getFlags, getLegendEntries } from "../overlay";
-import { isGM } from "../utils";
+import { colorKey, getFlags, getLegendColors, getLegendEntries, setLegendEntries } from "../overlay";
+import type { LegendMap } from "../types";
+import { getGame, isGM } from "../utils";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -10,9 +11,11 @@ export default class LegendWindow extends HandlebarsApplicationMixin(Application
 
   static override DEFAULT_OPTIONS: any = {
     id: "political-overlay-legend",
+    tag: "form",
     classes: ["political-overlay-legend"],
     window: { title: "POLITICAL_OVERLAY.legend.title", icon: "fa-solid fa-list", minimizable: true },
     position: { width: 220, height: "auto", left: 120 },
+    form: { handler: LegendWindow.onSubmit, submitOnChange: true, closeOnSubmit: false },
   };
 
   static override PARTS = {
@@ -36,6 +39,8 @@ export default class LegendWindow extends HandlebarsApplicationMixin(Application
   static #hadEntries = false;
   // last shouldshow result; only a false to true edge force-opens the window
   static #wasShown = false;
+  // painted color keys at the last sync
+  static #lastColors = new Set<string>();
 
   static setInControl(active: boolean): void {
     this.#inControl = active;
@@ -49,12 +54,28 @@ export default class LegendWindow extends HandlebarsApplicationMixin(Application
     if (!newScene && entries !== this.#hadEntries) void ui.controls?.render({ reset: true } as any);
     this.#hadEntries = entries;
 
+    this.#lastColors = new Set(getLegendColors(canvas?.scene).map(colorKey));
+
     const show = this.shouldShow();
     const opening = show && (newScene || !this.#wasShown);
     this.#wasShown = show;
     if (!show) return void this.#instance?.close();
     if (opening) this.open();
     else if (this.#instance?.rendered) void this.#instance.render();
+  }
+
+  // userid is the client that made the scene update
+  static onSceneUpdate(changes: object, userId: string): void {
+    const self = userId === getGame().user?.id;
+    const legendPath = `flags.${CONSTANTS.MODULE_ID}.legend`;
+    const legendOnly = foundry.utils.hasProperty(changes, legendPath) && !foundry.utils.hasProperty(changes, `flags.${CONSTANTS.MODULE_ID}.cells`);
+    // the editing gm already sees their own input; a re-render drops focus
+    if (self && legendOnly) return;
+
+    const newColor = getLegendColors(canvas?.scene).some((c) => !this.#lastColors.has(colorKey(c)));
+    const bindingChanged = foundry.utils.hasProperty(changes, legendPath) || newColor;
+    this.sync();
+    if (!self && bindingChanged && this.shouldShow() && !this.#instance?.rendered) this.open();
   }
 
   static open(): void {
@@ -68,5 +89,12 @@ export default class LegendWindow extends HandlebarsApplicationMixin(Application
       entries: getLegendEntries(canvas?.scene),
       isGM: isGM(),
     };
+  }
+
+  // formdataextended keys like "ff4500.name" expand into nested entries
+  private static async onSubmit(this: LegendWindow, _event: Event, _form: HTMLFormElement, formData: any): Promise<void> {
+    const scene = canvas?.scene;
+    if (!scene || !isGM()) return;
+    await setLegendEntries(scene, foundry.utils.expandObject(formData.object) as LegendMap);
   }
 }

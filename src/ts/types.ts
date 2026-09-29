@@ -9,7 +9,6 @@ export type OverlayTool = "paint" | "erase";
 // dm-set label for one painted color
 export interface LegendEntry {
   name?: string;
-  secondary?: string;
 }
 
 // key is the hex color without "#"

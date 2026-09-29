@@ -112,11 +112,11 @@ export function registerControls(): void {
   });
 
   // flag changes on the viewed scene redraw the layer
-  Hooks.on("updateScene", (scene, changes) => {
+  Hooks.on("updateScene", (scene, changes, _options, userId) => {
     if (scene.id !== canvas?.scene?.id) return;
     if (!foundry.utils.hasProperty(changes, `flags.${CONSTANTS.MODULE_ID}`)) return;
     getLayer()?.refresh();
-    LegendWindow.sync();
+    LegendWindow.onSceneUpdate(changes, userId);
   });
 
   // canvasready fires after every scene draw

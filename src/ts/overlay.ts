@@ -28,7 +28,7 @@ export interface LegendRow {
   color: string;
   key: string;
   name: string;
-  secondary: string;
+  customName: string;
 }
 
 export const getLegendEntries = (scene: Scene | null | undefined): LegendRow[] => {
@@ -37,9 +37,20 @@ export const getLegendEntries = (scene: Scene | null | undefined): LegendRow[] =
     const key = colorKey(color);
     const entry = legend[key] ?? {};
     const fallback = PALETTE.find((p) => colorKey(p.color) === key)?.name ?? color;
-    return { color, key, name: entry.name || fallback, secondary: entry.secondary ?? "" };
+    return { color, key, name: entry.name || fallback, customName: entry.name ?? "" };
   });
 };
+
+// writes only the legend fields that differ from the saved flags
+export async function setLegendEntries(scene: Scene, entries: LegendMap): Promise<void> {
+  const legend = getLegend(scene);
+  const update: Record<string, string> = {};
+  for (const [key, entry] of Object.entries(entries)) {
+    const name = (entry.name ?? "").trim();
+    if (name !== (legend[key]?.name ?? "")) update[`flags.${CONSTANTS.MODULE_ID}.legend.${key}.name`] = name;
+  }
+  if (Object.keys(update).length) await scene.update(update as any);
+}
 
 export const getAlpha = (scene: Scene | null | undefined): number => {
   const flags = getFlags(scene);
