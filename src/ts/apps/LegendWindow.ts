@@ -26,8 +26,22 @@ export default class LegendWindow extends HandlebarsApplicationMixin(Application
     return isGM() || !!getFlags(scene).visible;
   }
 
-  static sync(): void {
-    if (!this.shouldShow()) return void this.#instance?.close();
+  // last shouldshow result; only a false to true edge force-opens the window
+  static #wasShown = false;
+
+  // newscene treats the scene as unseen so its legend opens
+  static sync(newScene = false): void {
+    const show = this.shouldShow();
+    const opening = show && (newScene || !this.#wasShown);
+    // reset re-runs getscenecontrolbuttons so the legend tool shows or hides
+    if (!newScene && show !== this.#wasShown) void ui.controls?.render({ reset: true } as any);
+    this.#wasShown = show;
+    if (!show) return void this.#instance?.close();
+    if (opening) this.open();
+    else if (this.#instance?.rendered) void this.#instance.render();
+  }
+
+  static open(): void {
     // top is measured from the viewport since position has no bottom
     this.#instance ??= new LegendWindow({ position: { top: Math.max(80, window.innerHeight - 320) } });
     void this.#instance.render({ force: true });

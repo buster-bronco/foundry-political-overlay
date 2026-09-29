@@ -41,9 +41,10 @@ export default class PoliticalOverlayLayer extends InteractionLayer {
     const scene = canvas.scene;
     const cells = { ...getCells(scene), ...this.#inflight, ...this.#pending };
 
-    // editors always see the overlay while the layer is active
-    this.#cells.visible = !!getFlags(scene).visible || this.active;
-    this.#cells.alpha = getAlpha(scene);
+    // editors see a faded overlay while it's hidden from players
+    const shown = !!getFlags(scene).visible;
+    this.#cells.visible = shown || this.active;
+    this.#cells.alpha = getAlpha(scene) * (shown ? 1 : CONSTANTS.HIDDEN_ALPHA_SCALE);
     this.#cells.clear();
     for (const [key, color] of Object.entries(cells)) {
       if (color) this.#drawCell(this.#cells, key, color);

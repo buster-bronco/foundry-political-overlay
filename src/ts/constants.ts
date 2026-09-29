@@ -9,6 +9,8 @@ export const CONSTANTS = {
   // module queries must be prefixed with the module id
   PAINT_QUERY: `${id}.paint`,
   DEFAULT_ALPHA: 0.5,
+  // alpha multiplier for the editor's view of a hidden overlay
+  HIDDEN_ALPHA_SCALE: 0.35,
   // below drawings (zindex 20 in the interface group)
   LAYER_Z_INDEX: 19,
 } as const;

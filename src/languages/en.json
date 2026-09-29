@@ -4,6 +4,8 @@
     "tools": {
       "paint": "Paint Territory",
       "erase": "Erase Territory",
+      "palette": "Show Palette",
+      "legend": "Show Legend",
       "toggle": "Show/Hide Overlay",
       "config": "Configure Overlay",
       "reset": "Reset Overlay"

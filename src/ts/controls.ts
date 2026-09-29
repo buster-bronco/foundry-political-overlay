@@ -49,9 +49,26 @@ export function registerControls(): void {
           icon: "fa-solid fa-eraser",
           onChange: selectTool("erase"),
         },
+        palette: {
+          name: "palette",
+          order: 2,
+          title: "POLITICAL_OVERLAY.tools.palette",
+          icon: "fa-solid fa-palette",
+          button: true,
+          onChange: () => PaletteControls.open(),
+        },
+        legend: {
+          name: "legend",
+          order: 3,
+          title: "POLITICAL_OVERLAY.tools.legend",
+          icon: "fa-solid fa-list",
+          visible: LegendWindow.shouldShow(),
+          button: true,
+          onChange: () => LegendWindow.open(),
+        },
         toggle: {
           name: "toggle",
-          order: 2,
+          order: 4,
           title: "POLITICAL_OVERLAY.tools.toggle",
           icon: "fa-solid fa-eye",
           visible: isGM,
@@ -63,7 +80,7 @@ export function registerControls(): void {
         },
         config: {
           name: "config",
-          order: 3,
+          order: 5,
           title: "POLITICAL_OVERLAY.tools.config",
           icon: "fa-solid fa-gear",
           visible: isGM,
@@ -74,7 +91,7 @@ export function registerControls(): void {
         },
         reset: {
           name: "reset",
-          order: 4,
+          order: 6,
           title: "POLITICAL_OVERLAY.tools.reset",
           icon: "fa-solid fa-trash",
           visible: isGM,
@@ -102,5 +119,5 @@ export function registerControls(): void {
   });
 
   // canvasready fires after every scene draw
-  Hooks.on("canvasReady", () => LegendWindow.sync());
+  Hooks.on("canvasReady", () => LegendWindow.sync(true));
 }
