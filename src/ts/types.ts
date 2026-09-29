@@ -20,6 +20,15 @@ export interface OverlayFlags {
   playerAlpha?: number;
   cells?: CellMap;
   legend?: LegendMap;
+  labelsEnabled?: boolean;
+  labelGap?: number;
+  labelMinWidth?: number;
+}
+
+export interface LabelOptions {
+  enabled: boolean;
+  gap: number;
+  minWidth: number;
 }
 
 export interface PaintQueryData {

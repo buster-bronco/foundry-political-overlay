@@ -1,6 +1,6 @@
 import { CONSTANTS, PALETTE } from "./constants";
 import { isPlayerEditable } from "./settings";
-import type { CellChanges, CellMap, LegendMap, OverlayFlags, PaintQueryData } from "./types";
+import type { CellChanges, CellMap, LabelOptions, LegendMap, OverlayFlags, PaintQueryData } from "./types";
 import { getGame } from "./utils";
 
 export const getFlags = (scene: Scene | null | undefined): OverlayFlags => {
@@ -56,6 +56,15 @@ export const getAlpha = (scene: Scene | null | undefined): number => {
   const flags = getFlags(scene);
   const alpha = getGame().user?.isGM ? flags.gmAlpha : flags.playerAlpha;
   return alpha ?? CONSTANTS.DEFAULT_ALPHA;
+};
+
+export const getLabelOptions = (scene: Scene | null | undefined): LabelOptions => {
+  const flags = getFlags(scene);
+  return {
+    enabled: flags.labelsEnabled ?? true,
+    gap: flags.labelGap ?? CONSTANTS.LABEL_GAP,
+    minWidth: flags.labelMinWidth ?? CONSTANTS.LABEL_MIN_WIDTH,
+  };
 };
 
 // drawing_create is the core permission for placing drawings

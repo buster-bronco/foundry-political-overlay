@@ -1,17 +1,26 @@
 import { CONSTANTS } from "../constants";
-import { commitChanges, getAlpha, getCells, getFlags } from "../overlay";
-import { getPaletteColor } from "../settings";
-import type { CellChanges, OverlayTool } from "../types";
+import { cellStep, curveAt, findBlobs, layoutLabel, type LabelLayout } from "../labels";
+import { commitChanges, getAlpha, getCells, getFlags, getLabelOptions, getLegend } from "../overlay";
+import { getLabelFont, getPaletteColor } from "../settings";
+import type { CellChanges, CellMap, OverlayTool } from "../types";
 import { getGame } from "../utils";
 
 const { InteractionLayer } = foundry.canvas.layers;
+
+// one territory name; worldlength drives the min width check
+type LabelContainer = PIXI.Container & { worldLength: number; zoom: number };
 
 // registered under the interface canvas group; lives at canvas.politicalOverlay
 export default class PoliticalOverlayLayer extends InteractionLayer {
   tool: OverlayTool = "paint";
 
   #cells!: PIXI.Graphics;
+  #labels!: PIXI.Container;
   #preview!: PIXI.Graphics;
+  // merged cell map from the last refresh
+  #labelCells: CellMap = {};
+  // debounce collapses a paint stroke into one relayout
+  #rebuildLabels = foundry.utils.debounce(() => this.#buildLabels(), CONSTANTS.LABEL_REBUILD_DELAY);
   // strokes not yet echoed back through updateScene
   #pending: CellChanges = {};
   #inflight: CellChanges = {};
@@ -35,6 +44,7 @@ export default class PoliticalOverlayLayer extends InteractionLayer {
   protected override async _draw(options: any): Promise<void> {
     await super._draw(options);
     this.#cells = this.addChild(new PIXI.Graphics());
+    this.#labels = this.addChild(new PIXI.Container());
     this.#preview = this.addChild(new PIXI.Graphics());
     this.#pending = {};
     this.#inflight = {};
@@ -55,6 +65,121 @@ export default class PoliticalOverlayLayer extends InteractionLayer {
     this.#cells.clear();
     for (const [key, color] of Object.entries(cells)) {
       if (color) this.#drawCell(this.#cells, key, color);
+    }
+
+    this.#labels.visible = this.#cells.visible;
+    this.#labels.alpha = shown ? 1 : CONSTANTS.HIDDEN_ALPHA_SCALE;
+    this.#labelCells = cells as CellMap;
+    this.#rebuildLabels();
+  }
+
+  /* -------------------------------------------- */
+  /*  Labels                                      */
+  /* -------------------------------------------- */
+
+  #buildLabels(): void {
+    const labels = this.#labels;
+    const grid = canvas?.grid;
+    if (!labels || labels.destroyed || !canvas?.scene || !grid || grid.isGridless) return;
+    for (const child of labels.removeChildren()) child.destroy({ children: true });
+    const options = getLabelOptions(canvas.scene);
+    if (!options.enabled) return;
+
+    const legend = getLegend(canvas.scene);
+    const font = getLabelFont();
+    const step = cellStep(grid);
+    for (const blob of findBlobs(this.#labelCells, options.gap, grid)) {
+      const name = legend[blob.key]?.name?.trim();
+      if (!name) continue;
+      const chars = [...name.toUpperCase()];
+      const style = this.#labelStyle(font, blob.color);
+      const advances = chars.map((ch) => this.#measure(ch, style) + CONSTANTS.LABEL_LETTER_SPACING);
+      const layout = layoutLabel(blob, advances, step, options.gap);
+      if (layout) labels.addChild(this.#drawLabel(chars, advances, layout, style));
+    }
+    this.updateLabels();
+  }
+
+  // dark text on light colors, light text on dark ones
+  #labelStyle(font: string, color: string): PIXI.TextStyle {
+    const n = parseInt(color.slice(1), 16);
+    const luma = (0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255;
+    const dark = luma > 0.5;
+    return new PIXI.TextStyle({
+      fontFamily: font,
+      fontSize: 100,
+      fill: dark ? "#1a1a1a" : "#f4f1e8",
+      stroke: dark ? "#f4f1e8" : "#1a1a1a",
+    });
+  }
+
+  // advance width in em; textmetrics measures with a canvas context
+  #measure(ch: string, style: PIXI.TextStyle): number {
+    const width = PIXI.TextMetrics.measureText(ch, style).width / (style.fontSize as number);
+    return width || 0.3;
+  }
+
+  // letters are placed one by one along the curve by arc length
+  #drawLabel(chars: string[], advances: number[], layout: LabelLayout, base: PIXI.TextStyle): LabelContainer {
+    const label = new PIXI.Container() as LabelContainer;
+    label.worldLength = layout.length;
+    label.zoom = 0;
+    const style = base.clone();
+    style.fontSize = layout.fontSize;
+    style.strokeThickness = Math.max(1, layout.fontSize * 0.08);
+
+    // sampled arc length table along the curve
+    const samples = 64;
+    const xs: number[] = [];
+    const arc: number[] = [];
+    let last = curveAt(layout, layout.x0);
+    for (let k = 0; k <= samples; k++) {
+      const x = layout.x0 + ((layout.x1 - layout.x0) * k) / samples;
+      const p = curveAt(layout, x);
+      xs.push(x);
+      arc.push(k ? arc[k - 1] + Math.hypot(p.x - last.x, p.y - last.y) : 0);
+      last = p;
+    }
+    const xAt = (s: number): number => {
+      let k = 1;
+      while (k < samples && arc[k] < s) k++;
+      const t = (s - arc[k - 1]) / (arc[k] - arc[k - 1] || 1);
+      return xs[k - 1] + (xs[k] - xs[k - 1]) * t;
+    };
+
+    const total = advances.reduce((a, b) => a + b, 0) * layout.fontSize + layout.spacing * (chars.length - 1);
+    let s = (arc[samples] - total) / 2;
+    chars.forEach((ch, k) => {
+      const advance = advances[k] * layout.fontSize;
+      const p = curveAt(layout, xAt(s + advance / 2));
+      s += advance + layout.spacing;
+      if (!ch.trim()) return;
+      const text = new PIXI.Text(ch, style);
+      text.anchor.set(0.5);
+      text.position.set(p.x, p.y);
+      text.rotation = p.rotation;
+      label.addChild(text);
+    });
+    return label;
+  }
+
+  // hides labels under the min width and re-rasterizes text per zoom bucket
+  updateLabels(): void {
+    const labels = this.#labels;
+    if (!labels || labels.destroyed) return;
+    const scale = canvas?.stage?.scale.x ?? 1;
+    const minWidth = getLabelOptions(canvas?.scene).minWidth;
+    // power of two zoom buckets
+    const zoom = 2 ** Math.ceil(Math.log2(scale * window.devicePixelRatio));
+    for (const label of labels.children as LabelContainer[]) {
+      label.visible = label.worldLength * scale >= minWidth;
+      if (!label.visible || label.zoom === zoom) continue;
+      label.zoom = zoom;
+      for (const text of label.children as PIXI.Text[]) {
+        // texture size is fontsize × resolution
+        const cap = CONSTANTS.LABEL_MAX_TEXTURE / (text.style.fontSize as number);
+        text.resolution = Math.max(0.25, Math.min(zoom, CONSTANTS.LABEL_MAX_RESOLUTION, cap));
+      }
     }
   }
 

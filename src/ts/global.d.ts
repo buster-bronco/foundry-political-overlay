@@ -5,6 +5,7 @@ declare global {
   interface SettingConfig {
     "foundry-political-overlay.playerEditable": boolean;
     "foundry-political-overlay.paletteColor": string;
+    "foundry-political-overlay.labelFont": string;
   }
 
   // document flag shapes keyed by document name then scope

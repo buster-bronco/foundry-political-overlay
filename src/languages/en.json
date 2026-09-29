@@ -22,7 +22,12 @@
     "config": {
       "title": "Political Overlay Options",
       "gmAlpha": "GM Opacity",
-      "playerAlpha": "Player Opacity"
+      "playerAlpha": "Player Opacity",
+      "labelsEnabled": "Show Territory Labels",
+      "labelGap": "Label Gap Window",
+      "labelGapHint": "Same-colored areas this many cells apart share one label.",
+      "labelMinWidth": "Label Minimum Width",
+      "labelMinWidthHint": "Labels narrower than this many screen pixels are hidden until you zoom in."
     },
     "reset": {
       "content": "Clear every painted cell on this scene?"
@@ -31,6 +36,10 @@
       "playerEditable": {
         "name": "Player Editable",
         "hint": "Players with drawing permission can paint the overlay."
+      },
+      "labelFont": {
+        "name": "Label Font",
+        "hint": "Font used for territory labels on every client."
       }
     },
     "errors": {

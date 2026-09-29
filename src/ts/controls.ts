@@ -119,6 +119,9 @@ export function registerControls(): void {
     LegendWindow.onSceneUpdate(changes, userId);
   });
 
+  // canvaspan fires on every pan and zoom
+  Hooks.on("canvasPan", () => getLayer()?.updateLabels());
+
   // canvasready fires after every scene draw
   Hooks.on("canvasReady", () => LegendWindow.sync(true));
 }
