@@ -9,13 +9,19 @@ const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 export default class LegendWindow extends HandlebarsApplicationMixin(ApplicationV2) {
   static #instance: LegendWindow | null = null;
 
+  // unsaved name edits; a re-render would wipe them
+  #dirty = false;
+
   static override DEFAULT_OPTIONS: any = {
     id: "political-overlay-legend",
     tag: "form",
     classes: ["political-overlay-legend"],
     window: { title: "POLITICAL_OVERLAY.legend.title", icon: "fa-solid fa-list", minimizable: true },
     position: { width: 220, height: "auto", left: 120 },
-    form: { handler: LegendWindow.onSubmit, submitOnChange: true, closeOnSubmit: false },
+    form: { handler: LegendWindow.onSubmit, submitOnChange: false, closeOnSubmit: false },
+    actions: {
+      revert: LegendWindow.onRevert,
+    },
   };
 
   static override PARTS = {
@@ -61,7 +67,12 @@ export default class LegendWindow extends HandlebarsApplicationMixin(Application
     this.#wasShown = show;
     if (!show) return void this.#instance?.close();
     if (opening) this.open();
-    else if (this.#instance?.rendered) void this.#instance.render();
+    else this.#refresh();
+  }
+
+  static #refresh(): void {
+    const app = this.#instance;
+    if (app?.rendered && !app.#dirty) void app.render();
   }
 
   // userid is the client that made the scene update
@@ -69,7 +80,7 @@ export default class LegendWindow extends HandlebarsApplicationMixin(Application
     const self = userId === getGame().user?.id;
     const legendPath = `flags.${CONSTANTS.MODULE_ID}.legend`;
     const legendOnly = foundry.utils.hasProperty(changes, legendPath) && !foundry.utils.hasProperty(changes, `flags.${CONSTANTS.MODULE_ID}.cells`);
-    // the editing gm already sees their own input; a re-render drops focus
+    // the submit handler re-renders the editing gm's window itself
     if (self && legendOnly) return;
 
     const newColor = getLegendColors(canvas?.scene).some((c) => !this.#lastColors.has(colorKey(c)));
@@ -81,6 +92,7 @@ export default class LegendWindow extends HandlebarsApplicationMixin(Application
   static open(): void {
     // top is measured from the viewport since position has no bottom
     this.#instance ??= new LegendWindow({ position: { top: Math.max(80, window.innerHeight - 320) } });
+    if (this.#instance.rendered && this.#instance.#dirty) return this.#instance.bringToFront();
     void this.#instance.render({ force: true });
   }
 
@@ -91,10 +103,31 @@ export default class LegendWindow extends HandlebarsApplicationMixin(Application
     };
   }
 
+  // the form element survives re-renders; only the parts are replaced
+  protected override async _onFirstRender(context: any, options: any): Promise<void> {
+    await super._onFirstRender(context, options);
+    this.element.addEventListener("input", () => {
+      this.#dirty = true;
+      this.element.classList.add("dirty");
+    });
+  }
+
+  protected override async _onRender(context: any, options: any): Promise<void> {
+    await super._onRender(context, options);
+    this.#dirty = false;
+    this.element.classList.remove("dirty");
+  }
+
+  private static onRevert(this: LegendWindow): void {
+    void this.render();
+  }
+
   // formdataextended keys like "ff4500.name" expand into nested entries
   private static async onSubmit(this: LegendWindow, _event: Event, _form: HTMLFormElement, formData: any): Promise<void> {
     const scene = canvas?.scene;
     if (!scene || !isGM()) return;
     await setLegendEntries(scene, foundry.utils.expandObject(formData.object) as LegendMap);
+    // own legend updates skip the updatescene re-render
+    void this.render();
   }
 }

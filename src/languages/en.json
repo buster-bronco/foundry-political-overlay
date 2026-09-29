@@ -15,7 +15,9 @@
       "custom": "Custom color"
     },
     "legend": {
-      "title": "Territory Legend"
+      "title": "Territory Legend",
+      "confirm": "Confirm",
+      "revert": "Clear"
     },
     "config": {
       "title": "Political Overlay Options",

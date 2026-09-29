@@ -26,6 +26,17 @@
 }
 
 .political-overlay-legend {
+  // footer only while there are unsaved edits
+  .form-footer {
+    display: none;
+    margin-top: 6px;
+    gap: 4px;
+  }
+
+  &.dirty .form-footer {
+    display: flex;
+  }
+
   .entries {
     list-style: none;
     margin: 0;

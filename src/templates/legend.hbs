@@ -11,4 +11,10 @@
         </li>
         {{/each}}
     </ol>
+    {{#if isGM}}
+    <footer class="form-footer">
+        <button type="submit"><i class="fa-solid fa-check"></i> {{localize "POLITICAL_OVERLAY.legend.confirm"}}</button>
+        <button type="button" data-action="revert"><i class="fa-solid fa-rotate-left"></i> {{localize "POLITICAL_OVERLAY.legend.revert"}}</button>
+    </footer>
+    {{/if}}
 </section>
