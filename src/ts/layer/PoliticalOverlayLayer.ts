@@ -31,9 +31,6 @@ export default class PoliticalOverlayLayer extends InteractionLayer {
     await super._draw(options);
     this.#cells = this.addChild(new PIXI.Graphics());
     this.#preview = this.addChild(new PIXI.Graphics());
-    // eventmode none skips hit testing; clicks fall through to the canvas stage
-    this.#cells.eventMode = "none";
-    this.#preview.eventMode = "none";
     this.#pending = {};
     this.#inflight = {};
     this.refresh();

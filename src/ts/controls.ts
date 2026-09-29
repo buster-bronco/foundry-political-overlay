@@ -27,7 +27,12 @@ export function registerControls(): void {
       layer: CONSTANTS.LAYER_NAME,
       visible: canEdit(user),
       activeTool: "paint",
-      onChange: (_event: Event, active: boolean) => (active ? PaletteControls.open() : PaletteControls.close()),
+      // scene controls don't activate the layer on their own
+      onChange: (_event: Event, active: boolean) => {
+        if (!active) return PaletteControls.close();
+        getLayer()?.activate();
+        PaletteControls.open();
+      },
       tools: {
         paint: {
           name: "paint",
