@@ -30,6 +30,7 @@ export function registerControls(): void {
       activeTool: "paint",
       // scene controls don't activate the layer on their own
       onChange: (_event: Event, active: boolean) => {
+        LegendWindow.setInControl(active);
         if (!active) return PaletteControls.close();
         getLayer()?.activate();
         PaletteControls.open();
@@ -62,7 +63,7 @@ export function registerControls(): void {
           order: 3,
           title: "POLITICAL_OVERLAY.tools.legend",
           icon: "fa-solid fa-list",
-          visible: LegendWindow.shouldShow(),
+          visible: LegendWindow.hasEntries(),
           button: true,
           onChange: () => LegendWindow.open(),
         },
