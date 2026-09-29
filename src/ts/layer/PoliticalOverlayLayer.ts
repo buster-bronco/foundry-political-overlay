@@ -14,6 +14,8 @@ export default class PoliticalOverlayLayer extends InteractionLayer {
   // strokes not yet echoed back through updateScene
   #pending: CellChanges = {};
   #inflight: CellChanges = {};
+  // last painted cell; start point for shift-click lines
+  #anchor: string | null = null;
 
   static override get layerOptions() {
     return foundry.utils.mergeObject(super.layerOptions, {
@@ -33,6 +35,7 @@ export default class PoliticalOverlayLayer extends InteractionLayer {
     this.#preview = this.addChild(new PIXI.Graphics());
     this.#pending = {};
     this.#inflight = {};
+    this.#anchor = null;
     this.refresh();
   }
 
@@ -53,26 +56,59 @@ export default class PoliticalOverlayLayer extends InteractionLayer {
 
   // getvertices returns the cell polygon for any grid type
   #drawCell(g: PIXI.Graphics, key: string, color: string, fillAlpha = 1): void {
-    const [i, j] = key.split(",").map(Number);
-    const points = canvas!.grid!.getVertices({ i, j }).flatMap((p) => [p.x, p.y]);
+    const points = canvas!.grid!.getVertices(this.#offset(key)).flatMap((p) => [p.x, p.y]);
     g.beginFill(color, fillAlpha).drawPolygon(points).endFill();
+  }
+
+  // cell keys are "row,column" offsets
+  #offset(key: string): { i: number; j: number } {
+    const [i, j] = key.split(",").map(Number);
+    return { i, j };
+  }
+
+  #pointAt(event: PIXI.FederatedPointerEvent): PIXI.Point {
+    return event.getLocalPosition(this);
   }
 
   // getoffset snaps a canvas point to its grid row/column
   #keyAt(event: PIXI.FederatedPointerEvent): string | null {
-    const point = event.getLocalPosition(this);
+    const point = this.#pointAt(event);
     if (!canvas?.dimensions?.sceneRect.contains(point.x, point.y)) return null;
     const { i, j } = canvas.grid!.getOffset(point);
     return `${i},${j}`;
   }
 
+  // getdirectpath walks every cell between two offsets on any grid type
+  #lineKeys(from: string, to: string): string[] {
+    return canvas!.grid!.getDirectPath([this.#offset(from), this.#offset(to)]).map(({ i, j }) => `${i},${j}`);
+  }
+
+  #setCell(key: string, erase: boolean): void {
+    this.#pending[key] = erase ? null : getPaletteColor();
+    this.#anchor = key;
+  }
+
   #paint(event: PIXI.FederatedPointerEvent, erase: boolean): void {
     const key = this.#keyAt(event);
     if (!key) return;
-    const value = erase ? null : getPaletteColor();
-    if (this.#pending[key] === value) return;
-    this.#pending[key] = value;
+    if (this.#pending[key] === (erase ? null : getPaletteColor())) return;
+    this.#setCell(key, erase);
     this.refresh();
+  }
+
+  // shift-click paints from the anchor to the clicked cell
+  #paintLine(event: PIXI.FederatedPointerEvent, erase: boolean): void {
+    const key = this.#keyAt(event);
+    if (!key) return;
+    const keys = this.#anchor ? this.#lineKeys(this.#anchor, key) : [key];
+    for (const k of keys) this.#setCell(k, erase);
+    this.refresh();
+  }
+
+  #click(event: PIXI.FederatedPointerEvent, erase: boolean): void {
+    if (event.shiftKey) this.#paintLine(event, erase);
+    else this.#paint(event, erase);
+    void this.#commit();
   }
 
   async #commit(): Promise<void> {
@@ -110,7 +146,8 @@ export default class PoliticalOverlayLayer extends InteractionLayer {
     const key = this.#keyAt(event);
     if (!key) return;
     const color = this.tool === "erase" ? "#ff00ff" : getPaletteColor();
-    this.#drawCell(this.#preview, key, color, 0.5);
+    const keys = event.shiftKey && this.#anchor ? this.#lineKeys(this.#anchor, key) : [key];
+    for (const k of keys) this.#drawCell(this.#preview, k, color, 0.5);
   };
 
   /* -------------------------------------------- */
@@ -118,8 +155,7 @@ export default class PoliticalOverlayLayer extends InteractionLayer {
   /* -------------------------------------------- */
 
   protected override _onClickLeft(event: any): void {
-    this.#paint(event, this.tool === "erase");
-    void this.#commit();
+    this.#click(event, this.tool === "erase");
   }
 
   protected override _onDragLeftStart(event: any): void {
@@ -141,7 +177,6 @@ export default class PoliticalOverlayLayer extends InteractionLayer {
 
   // right click erases with any tool
   protected override _onClickRight(event: any): void {
-    this.#paint(event, true);
-    void this.#commit();
+    this.#click(event, true);
   }
 }
