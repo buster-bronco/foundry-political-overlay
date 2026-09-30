@@ -1,9 +1,10 @@
+import LegendWindow from "../apps/LegendWindow";
 import { CONSTANTS } from "../constants";
 import { cellStep, curveAt, findBlobs, layoutLabel, type LabelLayout } from "../labels";
 import { commitChanges, getAlpha, getCells, getFlags, getLabelOptions, getLegend } from "../overlay";
 import { getLabelFont, getPaletteColor } from "../settings";
 import type { CellChanges, CellMap, OverlayTool } from "../types";
-import { getGame } from "../utils";
+import { getGame, isGM } from "../utils";
 
 const { InteractionLayer } = foundry.canvas.layers;
 
@@ -28,6 +29,8 @@ export default class PoliticalOverlayLayer extends InteractionLayer {
   #anchor: string | null = null;
   // canvas point where a ctrl-drag rectangle started
   #rectOrigin: PIXI.IPointData | null = null;
+  // cell keys a player has explored; never shrinks until a fog reset
+  #seen = new Set<string>();
 
   static override get layerOptions() {
     return foundry.utils.mergeObject(super.layerOptions, {
@@ -50,13 +53,16 @@ export default class PoliticalOverlayLayer extends InteractionLayer {
     this.#inflight = {};
     this.#anchor = null;
     this.#rectOrigin = null;
+    this.#seen.clear();
     this.refresh();
   }
 
   refresh(): void {
     if (!this.#cells || !canvas?.scene) return;
     const scene = canvas.scene;
-    const cells = { ...getCells(scene), ...this.#inflight, ...this.#pending };
+    const all = { ...getCells(scene), ...this.#inflight, ...this.#pending };
+    this.#updateSeen(all);
+    const cells = this.filterSeen(all);
 
     // editors see a faded overlay while it's hidden from players
     const shown = !!getFlags(scene).visible;
@@ -71,6 +77,55 @@ export default class PoliticalOverlayLayer extends InteractionLayer {
     this.#labels.alpha = shown ? 1 : CONSTANTS.HIDDEN_ALPHA_SCALE;
     this.#labelCells = cells as CellMap;
     this.#rebuildLabels();
+  }
+
+  /* -------------------------------------------- */
+  /*  Vision                                      */
+  /* -------------------------------------------- */
+
+  // tokenvision is the scene's fog of war toggle
+  get #masked(): boolean {
+    return !isGM() && !!canvas?.visibility?.tokenVision;
+  }
+
+  // drops cells the player hasn't explored
+  filterSeen<T extends CellChanges>(cells: T): T {
+    if (!this.#masked) return cells;
+    return Object.fromEntries(Object.entries(cells).filter(([key]) => this.#seen.has(key))) as T;
+  }
+
+  // sightrefresh fires after token moves and light changes
+  refreshVision(): void {
+    if (!this.#cells || !canvas?.scene) return;
+    if (!this.#updateSeen({ ...getCells(canvas.scene), ...this.#inflight, ...this.#pending })) return;
+    this.refresh();
+    LegendWindow.sync();
+  }
+
+  // gm fog reset deletes the fogexploration document
+  resetVision(): void {
+    this.#seen.clear();
+    this.refresh();
+    LegendWindow.sync();
+  }
+
+  // ispointexplored reads saved fog; testvisibility is current sight
+  #updateSeen(cells: CellChanges): boolean {
+    const grid = canvas?.grid;
+    if (!this.#masked || !grid || !canvas?.visibility) return false;
+    const fog = canvas.fog;
+    const explored = !!fog?.fogExploration;
+    const tolerance = cellStep(grid) / 4;
+    let added = false;
+    for (const key of Object.keys(cells)) {
+      if (this.#seen.has(key)) continue;
+      const center = grid.getCenterPoint(this.#offset(key));
+      if (canvas.visibility.testVisibility(center, { tolerance }) || (explored && fog!.isPointExplored(center))) {
+        this.#seen.add(key);
+        added = true;
+      }
+    }
+    return added;
   }
 
   /* -------------------------------------------- */

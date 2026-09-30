@@ -122,6 +122,11 @@ export function registerControls(): void {
   // canvaspan fires on every pan and zoom
   Hooks.on("canvasPan", () => getLayer()?.updateLabels());
 
+  Hooks.on("sightRefresh", () => getLayer()?.refreshVision());
+
+  // fog reset deletes the viewer's fogexploration document
+  Hooks.on("deleteFogExploration", () => getLayer()?.resetVision());
+
   // canvasready fires after every scene draw
   Hooks.on("canvasReady", () => LegendWindow.sync(true));
 }

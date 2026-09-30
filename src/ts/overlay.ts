@@ -13,9 +13,9 @@ export const getCells = (scene: Scene | null | undefined): CellMap => getFlags(s
 export const colorKey = (color: string): string => color.replace(/^#/, "").toLowerCase();
 
 // unique painted colors in first-seen order
-export const getLegendColors = (scene: Scene | null | undefined): string[] => {
+export const getLegendColors = (scene: Scene | null | undefined, cells = getCells(scene)): string[] => {
   const seen = new Map<string, string>();
-  for (const color of Object.values(getCells(scene))) {
+  for (const color of Object.values(cells)) {
     const key = colorKey(color);
     if (!seen.has(key)) seen.set(key, `#${key}`);
   }
@@ -31,9 +31,9 @@ export interface LegendRow {
   customName: string;
 }
 
-export const getLegendEntries = (scene: Scene | null | undefined): LegendRow[] => {
+export const getLegendEntries = (scene: Scene | null | undefined, cells = getCells(scene)): LegendRow[] => {
   const legend = getLegend(scene);
-  return getLegendColors(scene).map((color) => {
+  return getLegendColors(scene, cells).map((color) => {
     const key = colorKey(color);
     const entry = legend[key] ?? {};
     const fallback = PALETTE.find((p) => colorKey(p.color) === key)?.name ?? color;

@@ -1,6 +1,6 @@
 import { CONSTANTS } from "../constants";
-import { colorKey, getFlags, getLegendColors, getLegendEntries, setLegendEntries } from "../overlay";
-import type { LegendMap } from "../types";
+import { colorKey, getCells, getFlags, getLegendColors, getLegendEntries, setLegendEntries } from "../overlay";
+import type { CellMap, LegendMap } from "../types";
 import { getGame, isGM } from "../utils";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
@@ -28,10 +28,16 @@ export default class LegendWindow extends HandlebarsApplicationMixin(Application
     body: { template: `modules/${CONSTANTS.MODULE_ID}/templates/legend.hbs` },
   };
 
+  // saved cells minus the ones hidden by fog of war
+  static #cells(): CellMap {
+    const cells = getCells(canvas?.scene);
+    return (canvas as any)?.[CONSTANTS.LAYER_NAME]?.filterSeen(cells) ?? cells;
+  }
+
   // players only get the legend while the overlay is shown
   static hasEntries(): boolean {
     const scene = canvas?.scene;
-    if (!scene || !getLegendEntries(scene).length) return false;
+    if (!scene || !getLegendEntries(scene, this.#cells()).length) return false;
     return isGM() || !!getFlags(scene).visible;
   }
 
@@ -60,7 +66,7 @@ export default class LegendWindow extends HandlebarsApplicationMixin(Application
     if (!newScene && entries !== this.#hadEntries) void ui.controls?.render({ reset: true } as any);
     this.#hadEntries = entries;
 
-    this.#lastColors = new Set(getLegendColors(canvas?.scene).map(colorKey));
+    this.#lastColors = new Set(getLegendColors(canvas?.scene, this.#cells()).map(colorKey));
 
     const show = this.shouldShow();
     const opening = show && (newScene || !this.#wasShown);
@@ -83,7 +89,7 @@ export default class LegendWindow extends HandlebarsApplicationMixin(Application
     // the submit handler re-renders the editing gm's window itself
     if (self && legendOnly) return;
 
-    const newColor = getLegendColors(canvas?.scene).some((c) => !this.#lastColors.has(colorKey(c)));
+    const newColor = getLegendColors(canvas?.scene, this.#cells()).some((c) => !this.#lastColors.has(colorKey(c)));
     const bindingChanged = foundry.utils.hasProperty(changes, legendPath) || newColor;
     this.sync();
     if (!self && bindingChanged && this.shouldShow() && !this.#instance?.rendered) this.open();
@@ -98,7 +104,7 @@ export default class LegendWindow extends HandlebarsApplicationMixin(Application
 
   override async _prepareContext(_options: any): Promise<any> {
     return {
-      entries: getLegendEntries(canvas?.scene),
+      entries: getLegendEntries(canvas?.scene, LegendWindow.#cells()),
       isGM: isGM(),
     };
   }
