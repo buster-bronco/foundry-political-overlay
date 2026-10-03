@@ -6,6 +6,7 @@ declare global {
     "foundry-political-overlay.playerEditable": boolean;
     "foundry-political-overlay.paletteColor": string;
     "foundry-political-overlay.labelFont": string;
+    "foundry-political-overlay.requireLight": boolean;
   }
 
   // document flag shapes keyed by document name then scope

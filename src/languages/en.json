@@ -40,6 +40,10 @@
       "labelFont": {
         "name": "Label Font",
         "hint": "Font used for territory labels on every client."
+      },
+      "requireLight": {
+        "name": "Require Light",
+        "hint": "Players only see territory in cells that are lit, even if explored with darkvision."
       }
     },
     "errors": {

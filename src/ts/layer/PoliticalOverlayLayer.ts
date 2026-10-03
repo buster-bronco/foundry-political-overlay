@@ -2,7 +2,7 @@ import LegendWindow from "../apps/LegendWindow";
 import { CONSTANTS } from "../constants";
 import { cellStep, curveAt, findBlobs, layoutLabel, type LabelLayout } from "../labels";
 import { commitChanges, getAlpha, getCells, getFlags, getLabelOptions, getLegend } from "../overlay";
-import { getLabelFont, getPaletteColor } from "../settings";
+import { getLabelFont, getPaletteColor, isLightRequired } from "../settings";
 import type { CellChanges, CellMap, OverlayTool } from "../types";
 import { getGame, isGM } from "../utils";
 
@@ -116,10 +116,13 @@ export default class PoliticalOverlayLayer extends InteractionLayer {
     const fog = canvas.fog;
     const explored = !!fog?.fogExploration;
     const tolerance = cellStep(grid) / 4;
+    const requireLight = isLightRequired() && !!canvas.effects;
     let added = false;
     for (const key of Object.keys(cells)) {
       if (this.#seen.has(key)) continue;
       const center = grid.getCenterPoint(this.#offset(key));
+      // testinsidelight covers light sources and global illumination
+      if (requireLight && !canvas.effects!.testInsideLight({ ...center, elevation: 0 })) continue;
       if (canvas.visibility.testVisibility(center, { tolerance }) || (explored && fog!.isPointExplored(center))) {
         this.#seen.add(key);
         added = true;

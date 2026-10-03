@@ -34,6 +34,16 @@ export const registerSettings = function () {
     onChange: () => (canvas as any)?.[CONSTANTS.LAYER_NAME]?.refresh(),
   } as any);
 
+  settings.register(CONSTANTS.MODULE_ID, "requireLight", {
+    name: "POLITICAL_OVERLAY.settings.requireLight.name",
+    hint: "POLITICAL_OVERLAY.settings.requireLight.hint",
+    scope: "world",
+    config: true,
+    type: Boolean,
+    default: true,
+    onChange: () => (canvas as any)?.[CONSTANTS.LAYER_NAME]?.resetVision(),
+  } as any);
+
   settings.register(CONSTANTS.MODULE_ID, "paletteColor", {
     name: "Palette Color",
     scope: "client",
@@ -45,6 +55,10 @@ export const registerSettings = function () {
 
 export const isPlayerEditable = (): boolean => {
   return getGame().settings.get(CONSTANTS.MODULE_ID, "playerEditable") as boolean;
+};
+
+export const isLightRequired = (): boolean => {
+  return getGame().settings.get(CONSTANTS.MODULE_ID, "requireLight") as boolean;
 };
 
 export const getPaletteColor = (): string => {
