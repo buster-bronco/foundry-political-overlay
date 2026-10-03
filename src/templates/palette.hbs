@@ -6,12 +6,13 @@
     </div>
     {{#if used.length}}
     <hr>
-    <div class="swatches">
+    <div class="swatches used">
         {{#each used}}
-        <button type="button" class="swatch {{#if active}}active{{/if}}" data-action="pick" data-color="{{color}}" data-tooltip="{{name}}" style="--swatch: {{color}}"></button>
+        <button type="button" class="swatch {{#if active}}active{{/if}}" data-action="pick" data-color="{{color}}" data-tooltip="{{name}}<br>{{localize "POLITICAL_OVERLAY.palette.recolorHint"}}" style="--swatch: {{color}}"></button>
         {{/each}}
     </div>
     {{/if}}
+    <input type="color" class="recolor" tabindex="-1" aria-hidden="true">
     <label class="custom">
         <span>{{localize "POLITICAL_OVERLAY.palette.custom"}}</span>
         <input type="color" name="color" value="{{current}}">
