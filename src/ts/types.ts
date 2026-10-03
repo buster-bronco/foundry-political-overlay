@@ -31,8 +31,18 @@ export interface LabelOptions {
   minWidth: number;
 }
 
+// legend key to name; null removes the entry
+export type LegendChanges = Record<string, string | null>;
+
+// one undoable write to the scene flags
+export interface OverlayEdit {
+  cells: CellChanges;
+  legend?: LegendChanges;
+}
+
 export interface PaintQueryData {
   sceneId: string;
   userId: string;
   changes: CellChanges;
+  legend?: LegendChanges;
 }

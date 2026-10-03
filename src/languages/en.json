@@ -12,7 +12,12 @@
     },
     "palette": {
       "title": "Territory Palette",
-      "custom": "Custom color"
+      "custom": "Custom color",
+      "recolorHint": "Right click to change this color",
+      "colorTaken": "That color is already painted on this scene."
+    },
+    "keybindings": {
+      "redo": "Redo Overlay Edit"
     },
     "legend": {
       "title": "Territory Legend",

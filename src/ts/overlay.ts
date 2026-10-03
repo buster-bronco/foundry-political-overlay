@@ -1,6 +1,6 @@
 import { CONSTANTS, PALETTE } from "./constants";
 import { isPlayerEditable } from "./settings";
-import type { CellChanges, CellMap, LabelOptions, LegendMap, OverlayFlags, PaintQueryData } from "./types";
+import type { CellChanges, CellMap, LabelOptions, LegendChanges, LegendMap, OverlayFlags, PaintQueryData } from "./types";
 import { getGame } from "./utils";
 
 export const getFlags = (scene: Scene | null | undefined): OverlayFlags => {
@@ -75,15 +75,15 @@ export const canEdit = (user: User | null | undefined): boolean => {
 };
 
 // scene updates need owner permission, so strokes go through the active gm
-export async function commitChanges(scene: Scene, changes: CellChanges): Promise<boolean> {
-  if (!Object.keys(changes).length) return true;
+export async function commitChanges(scene: Scene, changes: CellChanges, legend: LegendChanges = {}): Promise<boolean> {
+  if (!Object.keys(changes).length && !Object.keys(legend).length) return true;
   const g = getGame();
   const gm = g.users?.activeGM;
   if (!gm) {
     ui.notifications?.error("POLITICAL_OVERLAY.errors.noGM", { localize: true });
     return false;
   }
-  const data: PaintQueryData = { sceneId: scene.id!, userId: g.user!.id!, changes };
+  const data: PaintQueryData = { sceneId: scene.id!, userId: g.user!.id!, changes, legend };
   if (gm.isSelf) return applyPaint(data);
   return (await gm.query(CONSTANTS.PAINT_QUERY as any, data as any)) as boolean;
 }
@@ -92,13 +92,9 @@ export async function setVisible(scene: Scene, visible: boolean): Promise<void> 
   await scene.setFlag(CONSTANTS.MODULE_ID, "visible", visible);
 }
 
-// forceddeletion is the v14 replacement for "-=key" update syntax
-export async function resetCells(scene: Scene): Promise<void> {
-  await scene.update({ [`flags.${CONSTANTS.MODULE_ID}.cells`]: foundry.data.operators.ForcedDeletion.create() } as any);
-}
-
 // runs on the gm client; one update per stroke
-async function applyPaint({ sceneId, userId, changes }: PaintQueryData): Promise<boolean> {
+// forceddeletion is the v14 replacement for "-=key" update syntax
+async function applyPaint({ sceneId, userId, changes, legend = {} }: PaintQueryData): Promise<boolean> {
   const g = getGame();
   const scene = g.scenes?.get(sceneId);
   if (!scene || !canEdit(g.users?.get(userId))) return false;
@@ -106,6 +102,9 @@ async function applyPaint({ sceneId, userId, changes }: PaintQueryData): Promise
   const { ForcedDeletion } = foundry.data.operators;
   for (const [key, color] of Object.entries(changes)) {
     update[`flags.${CONSTANTS.MODULE_ID}.cells.${key}`] = color ?? ForcedDeletion.create();
+  }
+  for (const [key, name] of Object.entries(legend)) {
+    update[`flags.${CONSTANTS.MODULE_ID}.legend.${key}`] = name === null ? ForcedDeletion.create() : { name };
   }
   await scene.update(update as any);
   return true;

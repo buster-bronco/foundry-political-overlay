@@ -17,6 +17,21 @@
     }
   }
 
+  .political-overlay-palette-body {
+    position: relative;
+  }
+
+  // invisible anchor for the native picker popup
+  .recolor {
+    position: absolute;
+    width: 0;
+    height: 0;
+    padding: 0;
+    border: 0;
+    opacity: 0;
+    pointer-events: none;
+  }
+
   .custom {
     display: flex;
     align-items: center;

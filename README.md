@@ -6,7 +6,8 @@ Inspired by [cirrahn/foundry-polmap](https://github.com/cirrahn/foundry-polmap),
 - Open the **Political Overlay** scene control (handshake icon)
 - **Paint**: left click or drag across grid cells with the palette color
 - **Erase**: pick the erase tool, or hold middle click and drag with any tool
-- **Palette**: lets you pick a color
+- **Palette**: lets you pick a color; right click a used color to change it everywhere it's painted
+- **Undo/Redo**: ctrl+z undoes your last stroke, line, rectangle, recolor or reset; ctrl+y or ctrl+shift+z redoes it
 - **Territory Legend**: lets you assign names to territory colors
 - **Show/Hide** toggles the overlay for everyone on the scene
 - **Configure** sets GM and player opacity per scene

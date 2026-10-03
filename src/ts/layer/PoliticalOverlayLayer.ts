@@ -1,10 +1,11 @@
 import LegendWindow from "../apps/LegendWindow";
 import PaletteControls from "../apps/PaletteControls";
 import { CONSTANTS } from "../constants";
+import { CommandHistory, PaintCommand, RecolorCommand, type EditTarget } from "../history";
 import { cellStep, curveAt, findBlobs, layoutLabel, type LabelLayout } from "../labels";
 import { commitChanges, getAlpha, getCells, getFlags, getLabelOptions, getLegend } from "../overlay";
 import { getLabelFont, getPaletteColor, isLightRequired } from "../settings";
-import type { CellChanges, CellMap, OverlayTool } from "../types";
+import type { CellChanges, CellMap, OverlayEdit, OverlayTool } from "../types";
 import { getGame, isGM } from "../utils";
 
 const { InteractionLayer } = foundry.canvas.layers;
@@ -13,7 +14,7 @@ const { InteractionLayer } = foundry.canvas.layers;
 type LabelContainer = PIXI.Container & { worldLength: number; zoom: number };
 
 // registered under the interface canvas group; lives at canvas.politicalOverlay
-export default class PoliticalOverlayLayer extends InteractionLayer {
+export default class PoliticalOverlayLayer extends InteractionLayer implements EditTarget {
   tool: OverlayTool = "paint";
 
   #cells!: PIXI.Graphics;
@@ -34,6 +35,8 @@ export default class PoliticalOverlayLayer extends InteractionLayer {
   #erasing = false;
   // cell keys a player has explored; never shrinks until a fog reset
   #seen = new Set<string>();
+  // this client's undoable edits on the viewed scene
+  #history = new CommandHistory(this);
 
   static override get layerOptions() {
     return foundry.utils.mergeObject(super.layerOptions, {
@@ -57,6 +60,7 @@ export default class PoliticalOverlayLayer extends InteractionLayer {
     this.#anchor = null;
     this.#rectOrigin = null;
     this.#seen.clear();
+    this.#history.clear();
     this.refresh();
   }
 
@@ -334,15 +338,62 @@ export default class PoliticalOverlayLayer extends InteractionLayer {
     void this.#commit();
   }
 
+  // one pending batch becomes one undo step
   async #commit(): Promise<void> {
     if (!canvas?.scene || !Object.keys(this.#pending).length) return;
     const changes = this.#pending;
     this.#pending = {};
-    Object.assign(this.#inflight, changes);
-    await commitChanges(canvas.scene, changes);
-    // failed commits fall back to the saved flags
-    for (const key of Object.keys(changes)) delete this.#inflight[key];
+    const command = PaintCommand.from(this.#savedCells(), changes);
+    if (!command) return this.refresh();
+    // inflight keeps the stroke drawn while it waits in the queue
+    Object.assign(this.#inflight, command.after);
+    await this.#history.execute(command);
+  }
+
+  // saved flags plus writes still on their way to the gm
+  #savedCells(): CellChanges {
+    return { ...getCells(canvas?.scene), ...this.#inflight };
+  }
+
+  // edittarget receiver; failed commits fall back to the saved flags
+  async apply(edit: OverlayEdit): Promise<boolean> {
+    const scene = canvas?.scene;
+    if (!scene) return false;
+    Object.assign(this.#inflight, edit.cells);
     this.refresh();
+    const ok = await commitChanges(scene, edit.cells, edit.legend);
+    for (const key of Object.keys(edit.cells)) delete this.#inflight[key];
+    this.refresh();
+    return ok;
+  }
+
+  recolor(from: string, to: string): Promise<boolean> {
+    const cells = Object.fromEntries(Object.entries(this.#savedCells()).filter(([, c]) => c)) as CellMap;
+    return this.#history.execute(new RecolorCommand(cells, getLegend(canvas?.scene), from, to));
+  }
+
+  // erases every cell as one undo step
+  async reset(): Promise<void> {
+    const saved = this.#savedCells();
+    const command = PaintCommand.from(saved, Object.fromEntries(Object.keys(saved).map((k) => [k, null])));
+    if (command) await this.#history.execute(command);
+  }
+
+  undo(): boolean {
+    if (!this.#history.canUndo) return false;
+    void this.#history.undo();
+    return true;
+  }
+
+  redo(): boolean {
+    if (!this.#history.canRedo) return false;
+    void this.#history.redo();
+    return true;
+  }
+
+  // core ctrl+z keybinding calls this on the active layer
+  protected override _onUndoKey(_event: KeyboardEvent): boolean {
+    return this.undo();
   }
 
   /* -------------------------------------------- */

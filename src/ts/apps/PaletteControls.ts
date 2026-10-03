@@ -1,5 +1,6 @@
 import { CONSTANTS, PALETTE } from "../constants";
-import { colorKey, getCells, getLegendEntries } from "../overlay";
+import type PoliticalOverlayLayer from "../layer/PoliticalOverlayLayer";
+import { colorKey, getCells, getLegendColors, getLegendEntries } from "../overlay";
 import { getPaletteColor, setPaletteColor } from "../settings";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
@@ -7,6 +8,8 @@ const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 // floating color picker shown while the overlay control is active
 export default class PaletteControls extends HandlebarsApplicationMixin(ApplicationV2) {
   static #instance: PaletteControls | null = null;
+  // used color being changed through the recolor picker
+  #recolorFrom: string | null = null;
 
   static override DEFAULT_OPTIONS: any = {
     id: "political-overlay-palette",
@@ -56,6 +59,48 @@ export default class PaletteControls extends HandlebarsApplicationMixin(Applicat
       colors: PALETTE.filter((c) => !usedKeys.has(colorKey(c.color))).map(mark),
       used: used.map(mark),
     };
+  }
+
+  // right click a used swatch to open the native picker on it
+  protected override async _onRender(context: any, options: any): Promise<void> {
+    await super._onRender(context, options);
+    const picker = this.element.querySelector<HTMLInputElement>("input.recolor");
+    if (!picker) return;
+    for (const swatch of this.element.querySelectorAll<HTMLElement>(".used .swatch")) {
+      swatch.addEventListener("contextmenu", (event) => {
+        event.preventDefault();
+        this.#recolorFrom = swatch.dataset.color ?? null;
+        picker.value = this.#recolorFrom ?? "#000000";
+        picker.style.left = `${swatch.offsetLeft}px`;
+        picker.style.top = `${swatch.offsetTop + swatch.offsetHeight}px`;
+        // showpicker needs the user gesture from this event
+        picker.showPicker();
+      });
+    }
+    // stops submitonchange from treating it as the custom color
+    picker.addEventListener("change", (event) => {
+      event.stopPropagation();
+      void this.#recolor(picker);
+    });
+  }
+
+  // a color already painted on the scene is rejected
+  async #recolor(picker: HTMLInputElement): Promise<void> {
+    const from = this.#recolorFrom;
+    const to = picker.value;
+    this.#recolorFrom = null;
+    if (!from || colorKey(from) === colorKey(to)) return;
+    const used = getLegendColors(canvas?.scene, getCells(canvas?.scene)).map(colorKey);
+    if (used.includes(colorKey(to))) {
+      ui.notifications?.warn("POLITICAL_OVERLAY.palette.colorTaken", { localize: true });
+      picker.value = from;
+      return;
+    }
+    const layer = (canvas as any)?.[CONSTANTS.LAYER_NAME] as PoliticalOverlayLayer | undefined;
+    if (!layer) return;
+    if (colorKey(getPaletteColor()) === colorKey(from)) await setPaletteColor(to);
+    await layer.recolor(from, to);
+    this.render();
   }
 
   // formdataextended.object holds the named input values
