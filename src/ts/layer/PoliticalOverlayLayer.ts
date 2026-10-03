@@ -1,4 +1,5 @@
 import LegendWindow from "../apps/LegendWindow";
+import PaletteControls from "../apps/PaletteControls";
 import { CONSTANTS } from "../constants";
 import { cellStep, curveAt, findBlobs, layoutLabel, type LabelLayout } from "../labels";
 import { commitChanges, getAlpha, getCells, getFlags, getLabelOptions, getLegend } from "../overlay";
@@ -100,6 +101,7 @@ export default class PoliticalOverlayLayer extends InteractionLayer {
     if (!this.#updateSeen({ ...getCells(canvas.scene), ...this.#inflight, ...this.#pending })) return;
     this.refresh();
     LegendWindow.sync();
+    PaletteControls.sync();
   }
 
   // gm fog reset deletes the fogexploration document
@@ -107,6 +109,7 @@ export default class PoliticalOverlayLayer extends InteractionLayer {
     this.#seen.clear();
     this.refresh();
     LegendWindow.sync();
+    PaletteControls.sync();
   }
 
   // ispointexplored reads saved fog; testvisibility is current sight

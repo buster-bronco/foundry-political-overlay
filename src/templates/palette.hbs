@@ -4,6 +4,14 @@
         <button type="button" class="swatch {{#if active}}active{{/if}}" data-action="pick" data-color="{{color}}" data-tooltip="{{name}}" style="--swatch: {{color}}"></button>
         {{/each}}
     </div>
+    {{#if custom.length}}
+    <hr>
+    <div class="swatches">
+        {{#each custom}}
+        <button type="button" class="swatch {{#if active}}active{{/if}}" data-action="pick" data-color="{{color}}" data-tooltip="{{name}}" style="--swatch: {{color}}"></button>
+        {{/each}}
+    </div>
+    {{/if}}
     <label class="custom">
         <span>{{localize "POLITICAL_OVERLAY.palette.custom"}}</span>
         <input type="color" name="color" value="{{current}}">

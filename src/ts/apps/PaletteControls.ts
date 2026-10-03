@@ -1,4 +1,5 @@
 import { CONSTANTS, PALETTE } from "../constants";
+import { colorKey, getCells, getLegendEntries } from "../overlay";
 import { getPaletteColor, setPaletteColor } from "../settings";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
@@ -32,11 +33,29 @@ export default class PaletteControls extends HandlebarsApplicationMixin(Applicat
     void this.#instance?.close();
   }
 
+  // re-renders when painted colors change
+  static sync(): void {
+    if (this.#instance?.rendered) void this.#instance.render();
+  }
+
+  // painted colors outside the base palette; gone once erased from the scene
+  static #customColors(): { name: string; color: string }[] {
+    const scene = canvas?.scene;
+    const all = getCells(scene);
+    const cells = (canvas as any)?.[CONSTANTS.LAYER_NAME]?.filterSeen(all) ?? all;
+    const base = new Set(PALETTE.map((c) => colorKey(c.color)));
+    return getLegendEntries(scene, cells)
+      .filter((e) => !base.has(e.key))
+      .map((e) => ({ name: e.name, color: e.color }));
+  }
+
   override async _prepareContext(_options: any): Promise<any> {
     const current = getPaletteColor();
+    const mark = (c: { name: string; color: string }) => ({ ...c, active: colorKey(c.color) === colorKey(current) });
     return {
       current,
-      colors: PALETTE.map((c) => ({ ...c, active: c.color === current })),
+      colors: PALETTE.map(mark),
+      custom: PaletteControls.#customColors().map(mark),
     };
   }
 

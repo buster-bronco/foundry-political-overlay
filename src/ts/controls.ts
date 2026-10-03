@@ -117,6 +117,7 @@ export function registerControls(): void {
     if (!foundry.utils.hasProperty(changes, `flags.${CONSTANTS.MODULE_ID}`)) return;
     getLayer()?.refresh();
     LegendWindow.onSceneUpdate(changes, userId);
+    PaletteControls.sync();
   });
 
   // canvaspan fires on every pan and zoom
@@ -128,5 +129,8 @@ export function registerControls(): void {
   Hooks.on("deleteFogExploration", () => getLayer()?.resetVision());
 
   // canvasready fires after every scene draw
-  Hooks.on("canvasReady", () => LegendWindow.sync(true));
+  Hooks.on("canvasReady", () => {
+    LegendWindow.sync(true);
+    PaletteControls.sync();
+  });
 }
