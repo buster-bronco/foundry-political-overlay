@@ -30,6 +30,8 @@ export default class PoliticalOverlayLayer extends InteractionLayer {
   #anchor: string | null = null;
   // canvas point where a ctrl-drag rectangle started
   #rectOrigin: PIXI.IPointData | null = null;
+  // true while the middle mouse button is held
+  #erasing = false;
   // cell keys a player has explored; never shrinks until a fog reset
   #seen = new Set<string>();
 
@@ -352,11 +354,21 @@ export default class PoliticalOverlayLayer extends InteractionLayer {
       ui.notifications?.warn("POLITICAL_OVERLAY.errors.gridless", { localize: true });
     }
     canvas?.stage?.on("pointermove", this.#onHover);
+    canvas?.stage?.on("pointerdown", this.#onMiddleDown);
+    canvas?.stage?.on("pointerup", this.#onMiddleUp);
+    canvas?.stage?.on("pointerupoutside", this.#onMiddleUp);
     this.refresh();
   }
 
   protected override _deactivate(): void {
     canvas?.stage?.off("pointermove", this.#onHover);
+    canvas?.stage?.off("pointerdown", this.#onMiddleDown);
+    canvas?.stage?.off("pointerup", this.#onMiddleUp);
+    canvas?.stage?.off("pointerupoutside", this.#onMiddleUp);
+    if (this.#erasing) {
+      this.#erasing = false;
+      void this.#commit();
+    }
     this.#preview?.clear();
     this.refresh();
   }
@@ -364,12 +376,28 @@ export default class PoliticalOverlayLayer extends InteractionLayer {
   // stage pointermove fires even when no drag is active
   #onHover = (event: PIXI.FederatedPointerEvent): void => {
     if (this.#rectOrigin) return;
+    if (this.#erasing) this.#paint(event, true);
     this.#preview.clear();
     const key = this.#keyAt(event);
     if (!key) return;
-    const color = this.#previewColor(this.tool === "erase");
+    const color = this.#previewColor(this.#erasing || this.tool === "erase");
     const keys = event.shiftKey && this.#anchor ? this.#lineKeys(this.#anchor, key) : [key];
     for (const k of keys) this.#drawCell(this.#preview, k, color, 0.5);
+  };
+
+  // button 1 is the middle mouse button; the mouse manager only tracks left and right
+  #onMiddleDown = (event: PIXI.FederatedPointerEvent): void => {
+    if (event.button !== 1) return;
+    // middle click starts browser autoscroll
+    (event.nativeEvent as PointerEvent).preventDefault();
+    this.#erasing = true;
+    this.#paint(event, true);
+  };
+
+  #onMiddleUp = (event: PIXI.FederatedPointerEvent): void => {
+    if (event.button !== 1 || !this.#erasing) return;
+    this.#erasing = false;
+    void this.#commit();
   };
 
   /* -------------------------------------------- */
@@ -411,10 +439,5 @@ export default class PoliticalOverlayLayer extends InteractionLayer {
     this.#preview.clear();
     this.#pending = {};
     this.refresh();
-  }
-
-  // right click erases with any tool
-  protected override _onClickRight(event: any): void {
-    this.#click(event, true);
   }
 }
