@@ -1,6 +1,6 @@
 import "../styles/style.scss";
 import { CONSTANTS } from "./constants";
-import { registerControls } from "./controls";
+import { registerControls, registerKeybindings } from "./controls";
 import PoliticalOverlayLayer from "./layer/PoliticalOverlayLayer";
 import { registerQueries } from "./overlay";
 import { loadFontChoices, registerSettings } from "./settings";
@@ -11,6 +11,7 @@ Hooks.once("init", () => {
   registerQueries();
   PoliticalOverlayLayer.register();
   registerControls();
+  registerKeybindings();
 });
 
 Hooks.once("setup", () => loadFontChoices());

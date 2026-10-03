@@ -3,13 +3,28 @@ import OverlayConfig from "./apps/OverlayConfig";
 import PaletteControls from "./apps/PaletteControls";
 import { CONSTANTS } from "./constants";
 import type PoliticalOverlayLayer from "./layer/PoliticalOverlayLayer";
-import { canEdit, getFlags, resetCells, setVisible } from "./overlay";
+import { canEdit, getFlags, setVisible } from "./overlay";
 import type { OverlayTool } from "./types";
 import { getGame } from "./utils";
 
 const getLayer = () => (canvas as any)?.[CONSTANTS.LAYER_NAME] as PoliticalOverlayLayer | undefined;
 
 // v13+ passes controls as a record keyed by control name
+export function registerKeybindings(): void {
+  const { CONTROL, SHIFT } = foundry.helpers.interaction.KeyboardManager.MODIFIER_KEYS;
+  getGame().keybindings.register(CONSTANTS.MODULE_ID, "redo", {
+    name: "POLITICAL_OVERLAY.keybindings.redo",
+    editable: [
+      { key: "KeyY", modifiers: [CONTROL] },
+      { key: "KeyZ", modifiers: [CONTROL, SHIFT] },
+    ],
+    onDown: () => {
+      const layer = getLayer();
+      return !!layer && canvas?.activeLayer === layer && layer.redo();
+    },
+  } as any);
+}
+
 export function registerControls(): void {
   Hooks.on("getSceneControlButtons", (controls) => {
     const user = getGame().user;
@@ -104,7 +119,7 @@ export function registerControls(): void {
               window: { title: "POLITICAL_OVERLAY.tools.reset" },
               content: `<p>${getGame().i18n.localize("POLITICAL_OVERLAY.reset.content")}</p>`,
             });
-            if (ok) await resetCells(scene);
+            if (ok) await getLayer()?.reset();
           },
         },
       },
