@@ -38,24 +38,23 @@ export default class PaletteControls extends HandlebarsApplicationMixin(Applicat
     if (this.#instance?.rendered) void this.#instance.render();
   }
 
-  // painted colors outside the base palette; gone once erased from the scene
-  static #customColors(): { name: string; color: string }[] {
+  // every painted color on the scene; gone once erased
+  static #usedColors(): { name: string; color: string }[] {
     const scene = canvas?.scene;
     const all = getCells(scene);
     const cells = (canvas as any)?.[CONSTANTS.LAYER_NAME]?.filterSeen(all) ?? all;
-    const base = new Set(PALETTE.map((c) => colorKey(c.color)));
-    return getLegendEntries(scene, cells)
-      .filter((e) => !base.has(e.key))
-      .map((e) => ({ name: e.name, color: e.color }));
+    return getLegendEntries(scene, cells).map((e) => ({ name: e.name, color: e.color }));
   }
 
   override async _prepareContext(_options: any): Promise<any> {
     const current = getPaletteColor();
     const mark = (c: { name: string; color: string }) => ({ ...c, active: colorKey(c.color) === colorKey(current) });
+    const used = PaletteControls.#usedColors();
+    const usedKeys = new Set(used.map((c) => colorKey(c.color)));
     return {
       current,
-      colors: PALETTE.map(mark),
-      custom: PaletteControls.#customColors().map(mark),
+      colors: PALETTE.filter((c) => !usedKeys.has(colorKey(c.color))).map(mark),
+      used: used.map(mark),
     };
   }
 

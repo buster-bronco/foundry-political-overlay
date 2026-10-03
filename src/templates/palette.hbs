@@ -4,10 +4,10 @@
         <button type="button" class="swatch {{#if active}}active{{/if}}" data-action="pick" data-color="{{color}}" data-tooltip="{{name}}" style="--swatch: {{color}}"></button>
         {{/each}}
     </div>
-    {{#if custom.length}}
+    {{#if used.length}}
     <hr>
     <div class="swatches">
-        {{#each custom}}
+        {{#each used}}
         <button type="button" class="swatch {{#if active}}active{{/if}}" data-action="pick" data-color="{{color}}" data-tooltip="{{name}}" style="--swatch: {{color}}"></button>
         {{/each}}
     </div>
