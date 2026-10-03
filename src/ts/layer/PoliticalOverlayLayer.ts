@@ -35,6 +35,8 @@ export default class PoliticalOverlayLayer extends InteractionLayer implements E
   #erasing = false;
   // cell keys a player has explored; never shrinks until a fog reset
   #seen = new Set<string>();
+  // masking state at the last refresh
+  #wasMasked = false;
   // this client's undoable edits on the viewed scene
   #history = new CommandHistory(this);
 
@@ -67,6 +69,7 @@ export default class PoliticalOverlayLayer extends InteractionLayer implements E
   refresh(): void {
     if (!this.#cells || !canvas?.scene) return;
     const scene = canvas.scene;
+    this.#wasMasked = this.#masked;
     const all = { ...getCells(scene), ...this.#inflight, ...this.#pending };
     this.#updateSeen(all);
     const cells = this.filterSeen(all);
@@ -90,9 +93,14 @@ export default class PoliticalOverlayLayer extends InteractionLayer implements E
   /*  Vision                                      */
   /* -------------------------------------------- */
 
+  // gm vision sources only exist for controlled tokens with sight
+  get #tokenPreview(): boolean {
+    return isGM() && !!canvas?.effects?.visionSources.some((s) => s.active);
+  }
+
   // tokenvision is the scene's fog of war toggle
   get #masked(): boolean {
-    return !isGM() && !!canvas?.visibility?.tokenVision;
+    return !!canvas?.visibility?.tokenVision && (!isGM() || this.#tokenPreview);
   }
 
   // drops cells the player hasn't explored
@@ -101,10 +109,13 @@ export default class PoliticalOverlayLayer extends InteractionLayer implements E
     return Object.fromEntries(Object.entries(cells).filter(([key]) => this.#seen.has(key))) as T;
   }
 
-  // sightrefresh fires after token moves and light changes
+  // sightrefresh fires after token moves, light changes and token selection
   refreshVision(): void {
     if (!this.#cells || !canvas?.scene) return;
-    if (!this.#updateSeen({ ...getCells(canvas.scene), ...this.#inflight, ...this.#pending })) return;
+    const masked = this.#masked;
+    const flipped = masked !== this.#wasMasked;
+    const changed = this.#updateSeen({ ...getCells(canvas.scene), ...this.#inflight, ...this.#pending });
+    if (!changed && !flipped) return;
     this.refresh();
     LegendWindow.sync();
     PaletteControls.sync();
@@ -122,22 +133,28 @@ export default class PoliticalOverlayLayer extends InteractionLayer implements E
   #updateSeen(cells: CellChanges): boolean {
     const grid = canvas?.grid;
     if (!this.#masked || !grid || !canvas?.visibility) return false;
+    // gm token preview is live sight only, rebuilt every refresh
+    const live = this.#tokenPreview;
+    const seen = live ? new Set<string>() : this.#seen;
     const fog = canvas.fog;
-    const explored = !!fog?.fogExploration;
+    const explored = !live && !!fog?.fogExploration;
     const tolerance = cellStep(grid) / 4;
     const requireLight = isLightRequired() && !!canvas.effects;
     let added = false;
     for (const key of Object.keys(cells)) {
-      if (this.#seen.has(key)) continue;
+      if (seen.has(key)) continue;
       const center = grid.getCenterPoint(this.#offset(key));
       // testinsidelight covers light sources and global illumination
       if (requireLight && !canvas.effects!.testInsideLight({ ...center, elevation: 0 })) continue;
       if (canvas.visibility.testVisibility(center, { tolerance }) || (explored && fog!.isPointExplored(center))) {
-        this.#seen.add(key);
+        seen.add(key);
         added = true;
       }
     }
-    return added;
+    if (!live) return added;
+    const changed = seen.size !== this.#seen.size || [...seen].some((k) => !this.#seen.has(k));
+    this.#seen = seen;
+    return changed;
   }
 
   /* -------------------------------------------- */
