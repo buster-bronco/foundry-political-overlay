@@ -4,7 +4,7 @@ export type CellMap = Record<string, string>;
 // null erases the cell
 export type CellChanges = Record<string, string | null>;
 
-export type OverlayTool = "paint" | "erase";
+export type OverlayTool = "paint" | "fill" | "erase";
 
 // dm-set label for one painted color
 export interface LegendEntry {

@@ -1,6 +1,7 @@
 import LegendWindow from "../apps/LegendWindow";
 import PaletteControls from "../apps/PaletteControls";
 import { CONSTANTS } from "../constants";
+import { floodFill } from "../fill";
 import { CommandHistory, PaintCommand, RecolorCommand, type EditTarget } from "../history";
 import { cellStep, curveAt, findBlobs, layoutLabel, type LabelLayout } from "../labels";
 import { commitChanges, getAlpha, getCells, getFlags, getLabelOptions, getLegend } from "../overlay";
@@ -355,6 +356,24 @@ export default class PoliticalOverlayLayer extends InteractionLayer implements E
     void this.#commit();
   }
 
+  // validate the whole region before submitting a single undoable batch
+  #fill(event: PIXI.FederatedPointerEvent): void {
+    const grid = canvas?.grid;
+    const bounds = canvas?.dimensions?.sceneRect;
+    if (!canvas?.scene || !grid || grid.isGridless || !bounds || this.#erasing) return;
+    const key = this.#keyAt(event);
+    if (!key) return;
+    const cells = { ...this.#savedCells(), ...this.#pending };
+    const result = floodFill(cells, this.#offset(key), getPaletteColor(), grid, bounds);
+    if (result.status === "open") {
+      ui.notifications?.warn("POLITICAL_OVERLAY.errors.fillNotEnclosed", { localize: true });
+      return;
+    }
+    if (result.status !== "filled") return;
+    Object.assign(this.#pending, result.changes);
+    void this.#commit();
+  }
+
   // one pending batch becomes one undo step
   async #commit(): Promise<void> {
     if (!canvas?.scene || !Object.keys(this.#pending).length) return;
@@ -449,7 +468,7 @@ export default class PoliticalOverlayLayer extends InteractionLayer implements E
     const key = this.#keyAt(event);
     if (!key) return;
     const color = this.#previewColor(this.#erasing || this.tool === "erase");
-    const keys = event.shiftKey && this.#anchor ? this.#lineKeys(this.#anchor, key) : [key];
+    const keys = this.tool !== "fill" && event.shiftKey && this.#anchor ? this.#lineKeys(this.#anchor, key) : [key];
     for (const k of keys) this.#drawCell(this.#preview, k, color, 0.5);
   };
 
@@ -473,11 +492,13 @@ export default class PoliticalOverlayLayer extends InteractionLayer implements E
   /* -------------------------------------------- */
 
   protected override _onClickLeft(event: any): void {
+    if (this.tool === "fill") return this.#fill(event);
     this.#click(event, this.tool === "erase");
   }
 
   // ctrl maps to cmd on mac through the keyboard manager
   protected override _onDragLeftStart(event: any): void {
+    if (this.tool === "fill") return;
     if (getGame().keyboard?.isModifierActive(foundry.helpers.interaction.KeyboardManager.MODIFIER_KEYS.CONTROL as any)) {
       this.#rectOrigin = { ...(event.interactionData?.origin ?? this.#pointAt(event)) };
       this.#drawRectPreview(this.#pointAt(event));
@@ -487,11 +508,13 @@ export default class PoliticalOverlayLayer extends InteractionLayer implements E
   }
 
   protected override _onDragLeftMove(event: any): void {
+    if (this.tool === "fill") return;
     if (this.#rectOrigin) return this.#drawRectPreview(this.#pointAt(event));
     this.#paint(event, this.tool === "erase");
   }
 
   protected override _onDragLeftDrop(event: any): void {
+    if (this.tool === "fill") return;
     if (this.#rectOrigin) {
       const erase = this.tool === "erase";
       for (const k of this.#rectKeys(this.#rectOrigin, this.#pointAt(event))) this.#setCell(k, erase);
@@ -503,6 +526,7 @@ export default class PoliticalOverlayLayer extends InteractionLayer implements E
   }
 
   protected override _onDragLeftCancel(_event: any): void {
+    if (this.tool === "fill") return;
     this.#rectOrigin = null;
     this.#preview.clear();
     this.#pending = {};

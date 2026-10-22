@@ -5,14 +5,17 @@ Inspired by [cirrahn/foundry-polmap](https://github.com/cirrahn/foundry-polmap),
 ## Usage
 - Open the **Political Overlay** scene control (handshake icon)
 - **Paint**: left click or drag across grid cells with the palette color
+- **Fill Tool**: click inside a closed painted outline to fill its empty interior, or click a painted region to replace its color with the palette color
 - **Erase**: pick the erase tool, or hold middle click and drag with any tool
 - **Palette**: lets you pick a color; right click a used color to change it everywhere it's painted
-- **Undo/Redo**: ctrl+z undoes your last stroke, line, rectangle, recolor or reset; ctrl+y or ctrl+shift+z redoes it
+- **Undo/Redo**: ctrl+z undoes your last stroke, line, rectangle, fill, recolor or reset; ctrl+y or ctrl+shift+z redoes it
 - **Territory Legend**: lets you assign names to territory colors
 - **Show/Hide** toggles the overlay for everyone on the scene
 - **Configure** sets GM and player opacity per scene
 
 Works on square and hex grids. Gridless scenes aren't supported.
+
+Fill follows shared edges: four neighbors on square grids and six on hex grids. Empty areas connected to the scene edge cannot be filled; connected same-colored painted regions can be recolored even at the edge. Fill affects the whole underlying region, including cells hidden by fog of war. It is click-only, with no Shift/Ctrl or drag variants; middle-drag still erases.
 
 ## Labels
 
@@ -27,4 +30,5 @@ Political Overlay lables are labels that display on colors assigned a name in th
 npm install
 npm run dev   # watch build, copies dist to FOUNDRY_VTT_PATH from .env
 npm run typecheck
+npm test      # fill geometry and editing/history checks
 ```

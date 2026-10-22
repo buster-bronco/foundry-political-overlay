@@ -3,6 +3,7 @@
     "control": "Political Overlay",
     "tools": {
       "paint": "Paint Territory",
+      "fill": "Fill Tool",
       "erase": "Erase Territory",
       "palette": "Show Palette",
       "legend": "Show Legend",
@@ -53,7 +54,8 @@
     },
     "errors": {
       "noGM": "No active GM to save the overlay.",
-      "gridless": "The political overlay needs a square or hex grid."
+      "gridless": "The political overlay needs a square or hex grid.",
+      "fillNotEnclosed": "This area is not enclosed. Close the painted outline before filling."
     }
   }
 }
